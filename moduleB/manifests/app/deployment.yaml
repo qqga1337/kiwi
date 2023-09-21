@@ -1,0 +1,48 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-shlyapa
+  labels: 
+    app: app-shlyapa
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 20%
+  revisionHistoryLimit: 15
+  selector:
+    matchLabels:
+      app: app-shlyapa
+  template:
+    metadata:
+      labels:
+        app: app-shlyapa
+    spec:
+      containers:
+        - name: app-shlyapa
+          image: gitlab.popa.com:5050/dev-worker1/shlyapa/shlyapa:a41e54ddb6250f2a174ccadfa1c78942cfdffa3d
+          imagePullPolicy: IfNotPresent
+          resources: 
+            requests:
+              cpu: 0.5
+              memory: "512Mi"
+            limits:
+              cpu: 0.8
+              memory: "1024Mi"
+          ports:
+            - name: app-shlyapa
+              containerPort: 6543
+          livenessProbe:
+            httpGet:
+              path: /liveness
+              port: 6543
+            initialDelaySeconds: 20
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 5
+      imagePullSecrets:
+        - name: config-secret
+

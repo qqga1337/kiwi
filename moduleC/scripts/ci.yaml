@@ -1,0 +1,72 @@
+variables:
+  VERSION: 1.0.${CI_PIPELINE_ID}
+
+stages:
+  - build
+  - test
+  - release
+  - notify
+
+build-app-job:
+  stage: build
+  image: 
+    name: gcr.io/kaniko-project/executor:v1.14.0-debug
+    entrypoint: [""]
+  script:
+    - /kaniko/executor
+      --context "${CI_PROJECT_DIR}"
+      --dockerfile "${CI_PROJECT_DIR}/Dockerfile"
+      --destination "${CI_REGISTRY_IMAGE}/shlyapa:${CI_COMMIT_SHA}"
+      --registry-certificate=gitlab.popa.com:5050=/etc/gitlab-runner/certs/ca.crt
+
+pylint:
+  stage: test
+  image: python:3.11-slim
+  before_script:
+    - mkdir -p public/badges public/lint
+    - echo undefined > public/badges/$CI_JOB_NAME.score
+    - pip install pylint-gitlab
+  script:
+    - pylint --exit-zero --output-format=text $(find -type f -name "*.py" ! -path "**/.venv/**") | tee /tmp/pylint.txt
+    - sed -n 's/^Your code has been rated at \([-0-9.]*\)\/.*/\1/p' /tmp/pylint.txt > public/badges/$CI_JOB_NAME.score
+    - pylint --exit-zero --output-format=pylint_gitlab.GitlabCodeClimateReporter $(find -type f -name "*.py" ! -path "**/.venv/**") > codeclimate.json
+    - pylint --exit-zero --output-format=pylint_gitlab.GitlabPagesHtmlReporter $(find -type f -name "*.py" ! -path "**/.venv/**") > public/lint/index.html
+  after_script:
+    - anybadge --overwrite --label $CI_JOB_NAME --value=$(cat public/badges/$CI_JOB_NAME.score) --file=public/badges/$CI_JOB_NAME.svg 4=red 6=orange 8=yellow 10=green
+    - |
+      echo "Your score is: $(cat public/badges/$CI_JOB_NAME.score)"
+  artifacts:
+    paths:
+      - public
+    reports:
+      codequality: codeclimate.json
+    when: always
+
+release-app-job:
+  stage: release
+  needs:
+    - build-app-job
+  image:
+    name: docker:dind
+    entrypoint: [""]
+  variables:
+    GIT_STRATEGY: none
+  before_script:
+    - until docker info; do sleep 1; done
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker pull $CI_REGISTRY_IMAGE/shlyapa:$CI_COMMIT_SHA
+    - docker tag $CI_REGISTRY_IMAGE/shlyapa:$CI_COMMIT_SHA $CI_REGISTRY_IMAGE/shlyapa:latest
+    - docker push $CI_REGISTRY_IMAGE/shlyapa:latest
+    
+notification-telegram:
+  stage: notify
+  variables:
+    DATA: "{\"chat_id\":\"-1001860249898\",\"text\":\"New version of backend sausage-store - $VERSION. Download artifact link - ${NEXUS_REPO_URL}/sausage
+store/com/yandex/practicum/devops/sausage-store/${VERSION}/sausage-store-${VERSION}.jar \"}"
+  needs:
+    - upload-backend-release
+  script:
+    - "curl -X POST -H 'Content-type: application/json' --data \"$DATA\" \"$WEBHOOK\"" 
+
+###curl -s -o /dev/null -X POST -H "Content-Type: application/json" -d "{\"chat_id\": \"-100XXXXXXXXXX\", \"text\": \"test_message\", \"disable_notification\": false}" https://api.telegram.org/bot{API_TOKEN}/sendMessage

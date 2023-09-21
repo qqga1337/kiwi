@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: app-shlyapa
+spec:
+  ports:
+  - port: 6543
+    targetPort: 6543
+  selector:
+    app: app-shlyapa
+  type: LoadBalancer
+

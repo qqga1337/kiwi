@@ -1,0 +1,51 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oil-refinery-application
+  labels: 
+    app: oil-refinery-application
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 20%
+  revisionHistoryLimit: 15
+  selector:
+    matchLabels:
+      app: oil-refinery-application
+  template:
+    metadata:
+      labels:
+        app: oil-refinery-application
+    spec:
+      containers:
+        - name: oil-refinery-application
+          image: gitlab.digital.skills:5050/lavrov-ssl/kiwi/test
+          imagePullPolicy: IfNotPresent
+          resources: 
+            requests:
+              cpu: 0.5
+              memory: "512Mi"
+            limits:
+              cpu: 0.8
+              memory: "1024Mi"
+          ports:
+            - name: oil-port
+              containerPort: 5000
+          readinessProbe:
+            httpGet:
+              path: /readiness
+              port: 5000
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 20
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 5
+      imagePullSecrets:
+        - name: config-secret
