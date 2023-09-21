@@ -1,0 +1,86 @@
+#######  Настройка L-RTR.DIGITSL.RU  ##########
+hostnamectl set-hostname l-rtr.digital.ru
+echo "127.0.0.1 l-rtr.digital.ru cgit" >> /etc/hosts
+#Устанавливаем FreeIPA сервер
+apt update
+apt install astra-freeipa-server -y
+astra-freeipa-server -d digital.ru -n l-rtr -ip 10.1.1.1 -o
+
+#Установка и настройка DHCP
+apt install isc-dhcp-server git -y
+echo 'INTERFACESv4="eth0"' > /etc/default/isc-dhcp-server
+cat > /etc/dhcp/dhcpd.conf <<EOF
+option domain-name "digital.ru";
+option domain-name-servers 10.1.1.1;
+
+default-lease-time 600;
+max-lease-time 7200;
+ddns-update-style none;
+subnet 10.1.1.0 netmask 255.255.255.0 {
+  range 10.1.1.20 10.1.1.230;
+  option domain-name-servers 10.1.1.1;
+  option domain-name "digital.ru";
+  option routers 10.1.1.1;
+}
+
+EOF
+#Дальше идем в админку и там настраиваем
+
+#Настройки Firewall
+cat > /etc/network/if-pre-up.d/iptables <<EOF
+#!/bin/sh
+iptables -t nat -A POSTROUTING -o eth1 -j MASQUERADE
+exit 0
+EOF
+#Разрешаем запуск скрипта
+chmod +x /etc/network/if-pre-up.d/iptables
+# Сразу его запускаем
+/etc/network/if-pre-up.d/iptables
+# Включаем Ip форвардинг
+echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.conf
+# Тут же применяем настройки
+sysctl -p
+
+#### WireGuard LRTR  #####
+
+# Устанавливаем WireGuard
+apt install wireguard -y
+# Подключаем модули ядра WireGuard
+modprobe wireguard
+# Создаем приватный ключ
+echo "aKvIundEFCplDZzW+K+xebyj1I/tS1eHwIQnV+LEzEw=" > /etc/wireguard/privatekey 
+# Создаем Публичный ключ
+echo "ILV9zHII224tr+pk69H6SsM06+EWzDvFUdyxK7MIggo=" > /etc/wireguard/publickey 
+# Создаем конфигурационный файл
+cat > /etc/wireguard/wg0.conf  <<EOF
+[Interface]
+Address = 172.16.1.2/24
+PrivateKey = aKvIundEFCplDZzW+K+xebyj1I/tS1eHwIQnV+LEzEw=
+
+[Peer]
+PublicKey = WbkKz0hE6dXYSzsSGag5ywYm61IVrqdrH2tff/UpaAk= 
+AllowedIPs = 10.1.2.0/24,172.16.1.0/24
+EndPoint = 192.168.122.155:51820
+PersistentKeepAlive = 5
+EOF
+# Запускаем службу WG и ставим ее в автозапуск
+systemctl enable --now wg-quick@wg0
+# Смотрим статус подключения
+wg show wg0
+# Если не прокатило: wg genkey | tee /etc/wireguard/privatekey | wg pubkey | tee /etc/wireguard/publickey
+
+# Добавляем ДНС записи
+ipa dnsrecord-add digital.ru c-git --a-rec 10.1.2.5
+ipa dnsrecord-add digital.ru c-ingress --a-rec 10.1.2.2
+ipa dnsrecord-add digital.ru c-backup --a-rec 10.1.2.4
+ipa dnsrecord-add digital.ru c-srv1 --a-rec 10.1.2.3
+
+
+#Создаем хосты и службы для выписки сертификатов
+ipa host-add c-git.digital.ru
+ipa service-add http://c-git.digital.ru
+
+
+#Создаем пользователя
+ipa user-add --password gitlab
+

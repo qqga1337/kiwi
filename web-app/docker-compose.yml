@@ -1,0 +1,27 @@
+version: "3.3"
+services:
+  app:
+    image: cgit.digital.ru:5000/prog1/project1/app:latest
+    deploy:
+      replicas: 2
+    environment:
+      - DATABASE_SERVER=${DATABASE_SERVER}
+      - VIRTUAL_HOST=app
+    networks:
+      - app_net
+  nginx:
+    image: nginxproxy/nginx-proxy
+    environment:
+      - DEFAULT_HOST=app
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /home/administrator/app/nginx.tmpl:/app/nginx.tmpl
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+    networks:
+      - app_net
+networks:
+  app_net:
+
+    

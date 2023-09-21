@@ -1,0 +1,63 @@
+Планируется, что к моменту работы с GlusterFS у тебя уже будет сетевая связность, а также DNS. Добавь также search домен. Также, можно дописать в /etc/hosts соотвествие адреса и имени, как вариант.
+Для выполнения сборки GlusterFS потребуется три ноды - C-RTR, L-RTR, BK1
+Шаг 0 - Добавляешь на них через инструменты управления диск, объема примерно 5 гб (nextcloud с БД по умолчанию займет примерно 3 ГБ, можешь сделать больше)
+
+Шаг 1 - 3 выполняется на всех хостах GlusterFS
+
+Шаг 1 - Установка XFS
+apt install xfs*  из стандартного репозитория Astra Linux
+
+Шаг 2 - Форматирование дисков и подготовка директорий-хранилища
+mkfs.xfs -i size=512 /dev/sdb1
+mkdir -p /data/brick1
+echo '/dev/sdb1 /data/brick1 xfs defaults 1 2' >> /etc/fstab
+mount -a 
+Проверь, что все подмонтировалось через mount или df -h, смотря что больше нравится.
+
+Шаг 3 - Установка GlusterFS
+apt install glusterfs-server
+
+Должно пройти все успешно, проверить можно - systemctl status glusterfs-server 
+
+
+Шаг 4 - Настройка общего хранилища
+
+С главного сервера, в нашем случае, предположим, что это C-RTR вводим команду:
+gluster peer probe BK1
+gluster peer probe l-RTR
+
+Далее с BK1, вводим:
+gluster peer probe c-RTR
+
+После ввода этих команд glusterfs  понимает с кем работать. Проверить можно командой - 
+gluster peer status - покажет статус нод в пуле.
+
+Шаг 5 - настройка тома GlusterFS для будущего монтирования
+
+На всех серверах:
+mkdir /data/brick1/gv0
+
+С любого сервера далее:
+gluster volume create gv0 replica 3 c-rtr:/data/brick1/gv0 l-rtr:/data/brick1/gv0 bk1:/data/brick1/gv0
+
+если все прошло ок, то ты в консоли увидишь - 
+volume create: gv0: success: please start the volume to access data
+
+Затем запускаем новый том - 
+gluster volume start gv0
+В ответе будет - volume start: gv0: success
+
+Чтобы убедиться в том что все ок - gluster volume info
+Вернет отчет о томе. Самое нужно это Status: Started
+
+Логи glusterfs лежат в - /var/log/glusterfs/glusterd.log смотреть можно с любого хоста.
+
+Функциональной проверкой будет - создай файлик на одном сервере и посмотри что он появился на другом.
+
+Теперь - как монтировать GlusterFS том к хосту, где будет nextcloud + mariadb.
+echo 'crtr:/gv0 /mnt glusterfs defaults 0 0' >> /etc/fstab
+
+
+
+
+

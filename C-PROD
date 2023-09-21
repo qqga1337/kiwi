@@ -1,0 +1,16 @@
+#######  Настройка C-PROD.DIGITSL.RU  ##########
+hostnamectl set-hostname c-prod.digital.ru
+echo "127.0.0.1 c-prod.digital.ru cgit" >> /etc/hosts
+# Устанавливаем Docker.io
+apt update
+apt install docker.io -y
+# Добавляем сертификат СА для докера. Кладем в home Admina ca.crt
+mkdir -p /etc/docker/certs.d/cgit.digital.ru:5000/
+cp /home/administrator/ca.crt /etc/docker/certs.d/cgit.digital.ru:5000/
+cp /home/administrator/ca.crt /usr/local/share/ca-certificates/
+update-ca-certificates 
+# Качаем и настраиваем Docker-Copmpose
+wget https://github.com/docker/compose/releases/download/v2.11.0/docker-compose-linux-x86_64
+chmod +x docker-compose-linux-x86_64
+mv docker-compose-linux-x86_64 /bin/docker-compose
+usermod administrator -aG docker

@@ -1,0 +1,20 @@
+0) Подключить Debian-репозиторий на астре
+Сначала - 
+apt install debian-archive-keyring - для включения поддержки Debian репозиториев.
+Потом 
+echo 'deb http://mirror.yandex.ru/debian stretch main contrib non-free" >> /etc/apt/sources.list
+apt update
+apt install ocserv
+
+1) Необходимо добавить Kerberos ключи для аутентификации службы OpenConnect в домене FreeIPA.
+ipa service-add HTTP/vpn.digital.ru
+
+ipa-getkeytab -s crtr.digital.ru -p HTTP/vpn.digital.ru -k /etc/ocserv/key.tab
+
+2) Дальше в целом все, можешь просто стырить ocserv.conf, который я приложу в директории.
+
+Одно НО!
+Была выявлена бага\фича.
+Но иногда, почему-то в ocserv.conf  поменять порт подключения оказывается малым. Помогло смена его в ocserv.socket.
+По пути - /lib/systemd/system/ocserv.socket 
+
