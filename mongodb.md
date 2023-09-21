@@ -7,7 +7,9 @@ MongoCLI:
 
     use OilRefineryDB1
 
+
     use admin
+
   
   db.createUser({ user: "app1", pwd: "app", roles: ["userAdminAnyDatabase", "dbAdminAnyDatabase", "readWriteAnyDatabase"] })
   
