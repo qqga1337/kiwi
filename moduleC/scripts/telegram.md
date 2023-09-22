@@ -35,3 +35,5 @@ sed  "s%var%$1%g" /root/deployment.yaml > /root/tmp.yaml
 kubectl apply -f /root/tmp.yaml
 rm -rf /root/tmp.yaml
 ```
+
+kubectl logs <podname> --tail 30
