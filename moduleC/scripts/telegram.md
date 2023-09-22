@@ -10,6 +10,7 @@ def main(message):
     #проверяем, что пишет именно владелец
      comand = message.text  #текст сообщения
      print(comand)
+     comand = comand.lstrip('/')
      try: #если команда невыполняемая - check_output выдаст exception
         bot.send_message(message.chat.id, check_output(comand, shell = True))
      except:
