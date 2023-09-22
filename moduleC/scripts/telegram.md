@@ -37,3 +37,8 @@ rm -rf /root/tmp.yaml
 ```
 
 kubectl logs <podname> --tail 30
+
+easyto196@yandex.ru
+scre@mo1488228
+
+docker login -u main -p pass
