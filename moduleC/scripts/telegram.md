@@ -25,3 +25,13 @@ if __name__ == '__main__':
             print("eroor")
             time.sleep(10)#в случае падения
 ```
+
+
+Скрипт на деплой
+
+```
+#!/bin/bash
+sed  "s%var%$1%g" /root/deployment.yaml > /root/tmp.yaml
+kubectl apply -f /root/tmp.yaml
+rm -rf /root/tmp.yaml
+```
